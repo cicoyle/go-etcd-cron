@@ -103,13 +103,35 @@ func (c *cron) Delete(ctx context.Context, name string) error {
 	if _, err := c.client.Delete(ctx, jobKey); err != nil {
 		return err
 	}
+	counterKey := c.key.CounterKey(name)
+	if _, err := c.client.Delete(ctx, counterKey); err != nil {
+		return err
+	}
+	// pop from garbage collector bc it's safely deleted,
+	// should not wait on garbage collector and let db grow
+	c.collector.Pop(counterKey)
 
 	if _, ok := c.queueCache.Load(jobKey); !ok {
 		return nil
 	}
 
+	c.queueLock.Lock(jobKey)
 	c.queueCache.Delete(jobKey)
-	return c.queue.Dequeue(jobKey)
+	c.queueLock.Unlock(jobKey)
+
+	c.queueLock.Lock(counterKey)
+	c.queueCache.Delete(counterKey)
+	c.queueLock.Unlock(counterKey)
+
+	var err error
+	if err = c.queue.Dequeue(counterKey); err != nil {
+		return err
+	}
+	if err := c.queue.Dequeue(jobKey); err != nil {
+		return err
+	}
+
+	return err
 }
 
 // validateName validates the name of a job.
