@@ -65,7 +65,7 @@ func (w *worker) handleEvent(ctx context.Context, event *queue.JobEvent) error {
 		// The queue fires triggers asynchronously to the job's lifecycle, so a
 		// trigger can land after the job was deleted and its counter closed.
 		if !ok {
-			w.log.V(1).Info("dropped ExecuteRequest for closed job", "modRevision", modRevision)
+			w.log.Info("dropped ExecuteRequest for closed job", "modRevision", modRevision)
 			return nil
 		}
 

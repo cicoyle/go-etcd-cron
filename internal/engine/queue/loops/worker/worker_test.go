@@ -297,7 +297,11 @@ func Test_worker(t *testing.T) {
 		var triggered []string
 		act := actionerfake.New().
 			WithSchedule(func(_ context.Context, name string, job *queue.QueuedJob) (counter.Interface, error) {
-				return counterfake.New().WithKey(job.GetModRevision()).WithJobName(name), nil
+				return counterfake.New().
+					WithKey(job.GetModRevision()).
+					WithTriggerRequest(func() *api.TriggerRequest {
+						return &api.TriggerRequest{Name: name}
+					}), nil
 			}).
 			WithTrigger(func(req *api.TriggerRequest, _ func(*api.TriggerResponse)) {
 				triggered = append(triggered, req.GetName())
@@ -330,6 +334,6 @@ func Test_worker(t *testing.T) {
 		}}))
 
 		assert.Len(t, w.counters, 1)
-		assert.Len(t, triggered, 1, "only the live job must be triggered")
+		assert.Equal(t, []string{"live"}, triggered, "only the live job must be triggered")
 	})
 }
